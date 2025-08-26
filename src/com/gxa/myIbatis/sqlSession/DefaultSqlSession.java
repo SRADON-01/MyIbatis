@@ -10,6 +10,7 @@ import java.lang.reflect.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -17,10 +18,29 @@ import java.util.Map;
 
 public class DefaultSqlSession implements SqlSession {
     /**
-     * 初始化所有SqlSession都共享的数据库连接吃
+     * 初始化整个SqlSession都共享的连接
      */
-    private static final MyDataSource ds = new MyDataSource();
+    private Connection conn;
 
+    /**
+     * 接收是否自动提交
+     */
+    private final Config cfg;
+
+    /**
+     * 初始化方法
+     */
+    protected DefaultSqlSession(Connection conn, Config cfg) {
+        this.conn = conn;
+        this.cfg = cfg;
+        try {
+            conn.setAutoCommit(cfg.isAutoCommit());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("[ERR] 事务事项设置失败");
+        }
+        System.out.println("[INIT] SqlSession初始化完成: [" + this + "] / AUTO_COMMIT: " + cfg.isAutoCommit());
+    }
 
 
     /**
@@ -43,7 +63,7 @@ public class DefaultSqlSession implements SqlSession {
         // 3. 创建代理对象
         @SuppressWarnings("unchecked")
         T proxyMapper = (T) Proxy.newProxyInstance(loader, interfaces, new InvocationHandler() {
-            Map<String, Object> caches = new HashMap<>();
+            final Map<String, Object> caches = new HashMap<>();
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                 System.out.println("[INFO] 代理执行: " + method.getName() + " :: " + Arrays.toString(args));
@@ -54,7 +74,6 @@ public class DefaultSqlSession implements SqlSession {
                     array[0] = args;
                     args = array;
                 }
-
 
                 // 判断方法是否有注解
                 if (method.isAnnotationPresent(Insert.class)) {
@@ -68,8 +87,8 @@ public class DefaultSqlSession implements SqlSession {
                     Map<String, Object> map = SqlParser.parseUpdateSql(sql, args[0], method);
 
                     // 获取连接
-                    Connection conn = dbUtils.getConnection(ds);
-                    System.out.println("[INFO] 获取连接: " + conn);
+                    // Connection conn = dbUtils.getConnection(ds);
+                    // System.out.println("[INFO] 获取连接: " + conn);
 
                     // 设置SQL
                     PreparedStatement ps = conn.prepareStatement((String) map.get("sql"));
@@ -77,14 +96,18 @@ public class DefaultSqlSession implements SqlSession {
 
                     // 设置参数并执行SQL
                     int row = (int) ExecuteParser.handelSetStatement(
-                            ps, (List<Object>) map.get("values"), ExecuteParser.SqlType.UPDATE
+                            ps,
+                            (List<Object>) map.get("values"),
+                            ExecuteParser.SqlType.UPDATE,
+                            cfg.isAutoCommit(),
+                            conn
                     );
 
                     // 如果返回自增主键
                     if (insert.returnInsertKey()) ExecuteParser.returnInsertKey(ps, args[0]);
 
                     // 释放资源
-                    dbUtils.closer(ps, conn);
+                    dbUtils.closer(ps);
                     return row;
 
 
@@ -99,8 +122,8 @@ public class DefaultSqlSession implements SqlSession {
                     Map<String, Object> map = SqlParser.parseUpdateSql(sql, args[0], method);
 
                     // 获取连接
-                    Connection conn = dbUtils.getConnection(ds);
-                    System.out.println("[INFO] 获取连接: " + conn);
+                    // Connection conn = dbUtils.getConnection(ds);
+                    // System.out.println("[INFO] 获取连接: " + conn);
 
                     // 设置SQL
                     PreparedStatement ps = conn.prepareStatement((String) map.get("sql"));
@@ -108,11 +131,15 @@ public class DefaultSqlSession implements SqlSession {
 
                     // 设置参数并执行SQL
                     int rows = (int) ExecuteParser.handelSetStatement(
-                            ps, (List<Object>) map.get("values"), ExecuteParser.SqlType.UPDATE
+                            ps,
+                            (List<Object>) map.get("values"),
+                            ExecuteParser.SqlType.UPDATE,
+                            cfg.isAutoCommit(),
+                            conn
                     );
 
                     // 释放资源
-                    dbUtils.closer(ps, conn);
+                    dbUtils.closer(ps);
                     return rows;
 
 
@@ -124,11 +151,11 @@ public class DefaultSqlSession implements SqlSession {
                     System.out.println("[INFO] 获取@Delete注解: " + sql);
 
                     // 解析SQL
-                    Map<String, Object> map = SqlParser.parseDeleteSql(sql, args[0]);
+                    Map<String, Object> map = SqlParser.parseDeleteSql(sql, args[0], method);
 
                     // 获取连接
-                    Connection conn = dbUtils.getConnection(ds);
-                    System.out.println("[INFO] 获取连接: " + conn);
+                    // Connection conn = dbUtils.getConnection(ds);
+                    // System.out.println("[INFO] 获取连接: " + conn);
 
                     // 设置SQL
                     PreparedStatement ps = conn.prepareStatement((String) map.get("sql"));
@@ -142,17 +169,20 @@ public class DefaultSqlSession implements SqlSession {
                      * 连接池 √
                      * 返回类型是Map √
                      * 返回类型是List<Map>
-                     * Mapper方传入多个简单类型
+                     * Mapper方传入多个简单类型(@Param实现) √
+                     * Mapper方传入Map √
                      * xml
                      */
                     // 设置参数并执行
                     int row = (int) ExecuteParser.handelSetStatement(
                             ps, (List<Object>) map.get("values"),
-                            ExecuteParser.SqlType.UPDATE
+                            ExecuteParser.SqlType.UPDATE,
+                            cfg.isAutoCommit(),
+                            conn
                     );
 
                     // 释放资源
-                    dbUtils.closer(ps, conn);
+                    dbUtils.closer(ps);
                     return row;
 
                 } else if (method.isAnnotationPresent(Select.class)) {
@@ -165,10 +195,10 @@ public class DefaultSqlSession implements SqlSession {
                     Map<String, Object> map;    // 准备解析结果
                     if (args == null)
                         // 接口方法无参数代表无条件查
-                        map = SqlParser.parseSelectSql(sql, null);
+                        map = SqlParser.parseSelectSql(sql, null, method);
                     else
                         // 接口方法有参数表示有条件查
-                        map = SqlParser.parseSelectSql(sql, args[0]);
+                        map = SqlParser.parseSelectSql(sql, args[0], method);
 
                     // 查询缓存
                     if (caches.get( sql + map.get("values")) != null) {
@@ -178,8 +208,8 @@ public class DefaultSqlSession implements SqlSession {
                     }
 
                     // 获取连接
-                    Connection conn = dbUtils.getConnection(ds);
-                    System.out.println("[INFO] 获取连接: " +  conn);
+                    // Connection conn = dbUtils.getConnection(ds);
+                    // System.out.println("[INFO] 获取连接: " +  conn);
 
                     // 设置SQL
                     System.out.println("[INFO] 执行SQL: " + map.get("sql"));
@@ -193,7 +223,11 @@ public class DefaultSqlSession implements SqlSession {
                     // 有参数才设置参数
                     if (map.get("values") != null)
                         ExecuteParser.handelSetStatement(
-                                ps, (List<?>) map.get("values"), ExecuteParser.SqlType.SELECT
+                                ps,
+                                (List<?>) map.get("values"),
+                                ExecuteParser.SqlType.SELECT,
+                                true,
+                                null
                         );
 
                     //// 执行SQL并处理结果集
@@ -217,7 +251,8 @@ public class DefaultSqlSession implements SqlSession {
                                 ps.executeQuery(), // 执行SQL
                                 // *获取List<Bean>中Bean的字节码
                                 (Class<?>) pt.getActualTypeArguments()[0],
-                                ResultParser.returnType.List
+                                ResultParser.returnType.List,
+                                cfg.isMapUnderscoreToCamelCase()
                         );
                         // System.out.println(returnResult);
 
@@ -226,7 +261,8 @@ public class DefaultSqlSession implements SqlSession {
                         return ResultParser.parseResultSet(
                                 ps.executeQuery(),  // 执行SQL
                                 returnType,
-                                ResultParser.returnType.Map
+                                ResultParser.returnType.Map,
+                                cfg.isMapUnderscoreToCamelCase()
                         );
                         // throw new RuntimeException("[ERR] 暂不支持返回Map类型");
 
@@ -235,7 +271,8 @@ public class DefaultSqlSession implements SqlSession {
                         returnResult = ResultParser.parseResultSet(
                                 ps.executeQuery(),
                                 returnType, // 这个就是字节码
-                                ResultParser.returnType.Single
+                                ResultParser.returnType.Single,
+                                cfg.isMapUnderscoreToCamelCase()
                         );
                         // System.out.println(returnResult);
 
@@ -244,13 +281,14 @@ public class DefaultSqlSession implements SqlSession {
                         returnResult = ResultParser.parseResultSet(
                                 ps.executeQuery(),
                                 returnType, // 这个就是字节码
-                                ResultParser.returnType.Bean
+                                ResultParser.returnType.Bean,
+                                cfg.isMapUnderscoreToCamelCase()
                         );
                         // System.out.println(returnResult);
                     }
 
                     // 释放资源
-                    dbUtils.closer(ps, conn);
+                    dbUtils.closer(ps);
 
                     // 将查询SQL、参数、查询结果一并写入缓存后再返回(key: SQL+参数列表, value:返回数据)
                     caches.put(sql + map.get("values"), returnResult);
@@ -294,5 +332,48 @@ public class DefaultSqlSession implements SqlSession {
         });
 
         return proxyMapper;
+    }
+
+    @Override
+    public void beginTransaction() {
+        cfg.setAutoCommit( false);
+        try {
+            conn.setAutoCommit( false);
+            System.out.println("[INFO] 已开启事务... AUTO_COMMIT: "+ cfg.isAutoCommit());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("[ERR] 开始事务失败");
+        }
+    }
+
+    @Override
+    public void commit() {
+        dbUtils.commit(conn);
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException("[WARN] 连接归还失败");
+        }
+    }
+
+    @Override
+    public void rollback() {
+        dbUtils.rollback(conn);
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException("[WARN] 连接归还失败");
+        }
+    }
+
+    @Override
+    public void close() {
+        // 没开启事务才能归还连接
+        if (cfg.isAutoCommit())
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                System.out.println("[WARN] 连接归还失败!");
+            }
     }
 }

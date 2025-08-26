@@ -31,7 +31,7 @@ public class ResultParser {
      * @param clazz 要封装对象的字节码对象
      * @return 对象列表或单个对象
      */
-    public static Object parseResultSet(ResultSet rs, Class<?> clazz, returnType type) {
+    public static Object parseResultSet(ResultSet rs, Class<?> clazz, returnType type, boolean isConvertNaming) {
         try {
 
             // 判断结果集大小
@@ -48,7 +48,7 @@ public class ResultParser {
 
                 // 实例属性赋值
                 rs.first();  // 移动到第一行, 方便直接取出数据
-                setBean(fields, bean, rs);  // 将查询结果封装到对象中
+                setBean(fields, bean, rs, isConvertNaming);  // 将查询结果封装到对象中
 
                 return bean;
 
@@ -76,7 +76,7 @@ public class ResultParser {
                     /**
                      * TODO List<Map>
                      */
-                    setBean(fields, bean, rs);  // 将查询结果封装到对象中
+                    setBean(fields, bean, rs, isConvertNaming);  // 将查询结果封装到对象中
                     //                for (Field field : fields) {
                     //                    // 利用BeanUtils把结果集中的值都依次封装到对象对应的的属性中
                     //                    try {
@@ -111,7 +111,7 @@ public class ResultParser {
      * @param bean 要封装的Bean对象实例
      * @param rs 结果集对象
      */
-    public static void setBean(Field[] fields, Object bean, ResultSet rs) {
+    public static void setBean(Field[] fields, Object bean, ResultSet rs, boolean isConvertNaming) {
         // 把结果集中的字段一一对应到Bean属性中, 根据Bean属性名到结果集中取值
         for (Field field : fields) {
             // 获取属性名称, 对应结果集中的列
@@ -121,7 +121,7 @@ public class ResultParser {
                 // 通过对象属性取出(映射)结果集中的字段值
                 Object columnValue = rs.getObject(
                         // 如果设置了驼峰转换就传入驼峰属性名, 否则传入属性名, 不然在数据库中找不到该列
-                        dbUtils.isConvertNaming() ? SqlParser.mapUnderscoreToCamelCase(fieldName) : fieldName
+                        isConvertNaming ? SqlParser.mapUnderscoreToCamelCase(fieldName) : fieldName
                 );
 
                 // 利用BeanUtils把结果集中的值都依次封装到对象对应的的属性中

@@ -2,14 +2,26 @@ package com.gxa.test;
 
 import com.gxa.mapper.GoodsMapper;
 import com.gxa.myIbatis.sqlSession.DefaultSqlSession;
-import com.gxa.myIbatis.utils.ReflectUtils;
+import com.gxa.myIbatis.sqlSession.SqlSessionFactory;
+import com.gxa.myIbatis.sqlSession.SqlSessionFactoryx;
 import com.gxa.pojo.entity.Goods;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class GoodsMapperTest {
+    DefaultSqlSession sqlSession;
+    SqlSessionFactory factory;
+    @Before
+    public void init(){
+        factory = new SqlSessionFactory("jdbc.properties");
+        sqlSession = factory.openSession();
+    }
     @Test
     public void testInsert() {
-        DefaultSqlSession sqlSession = new DefaultSqlSession();
+
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         int i = mapper.insert(new Goods(
                 null,
@@ -23,7 +35,7 @@ public class GoodsMapperTest {
 
     @Test
     public void testInsertReturnId() {
-        DefaultSqlSession sqlSession = new DefaultSqlSession();
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         Goods g = new Goods(
                 null,
@@ -36,27 +48,27 @@ public class GoodsMapperTest {
         System.out.println(i + g.toString());
     }
 
-    @Test
-    public void testIs() {
-        int i = 1;
-        Integer j = 3;
-        System.out.println(
-                ReflectUtils.isBean(i)
-        );
-        System.out.println(
-                ReflectUtils.isBean(j)
-        );
-        System.out.println(
-                ReflectUtils.isBean(new Goods())
-        );
-    }
+//    @Test
+//    public void testIs() {
+//        int i = 1;
+//        Integer j = 3;
+//        System.out.println(
+//                ReflectUtils.isBean(i)
+//        );
+//        System.out.println(
+//                ReflectUtils.isBean(j)
+//        );
+//        System.out.println(
+//                ReflectUtils.isBean(new Goods())
+//        );
+//    }
 
     @Test
     public void testDelete(){
-        DefaultSqlSession sqlSession = new DefaultSqlSession();
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         System.out.println(
-                mapper.delete(33)
+                mapper.delete(19)
         );
         System.out.println(
                 mapper.deleteByIdAndStock(new Goods(
@@ -77,15 +89,33 @@ public class GoodsMapperTest {
                 ))
         );
     }
+    @Test
+    public void testDelByParamsAnnoAndMap() {
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
+        GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
+        System.out.println(
+                mapper.deleteByMapWithIdAndStock(
+                        new HashMap<String, Object>() {{
+                            put("id", 17);
+                            put("stock", 114514);
+                        }}
+                )
+        );
+        System.out.println(
+                mapper.deleteByParamsAnnoWithIdAndStock(
+                        18, 114514
+                )
+        );
+    }
 
     @Test
     public void testUpdate(){
-        DefaultSqlSession sqlSession = new DefaultSqlSession();
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         System.out.println(
                 mapper.update(new Goods(
                         35,
-                        "OPO_PHONE",
+                        "OPO0_PHONE",
                         2980.0,
                         333,
                         "xxxx"
@@ -94,8 +124,33 @@ public class GoodsMapperTest {
     }
 
     @Test
+    public void testUpdateByParamsAnnoAndMap() {
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
+        GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
+        Map map = new HashMap<String, Object>();
+        map.put("id", 3);
+        map.put("name", "OPO_PHONE");
+        map.put("price", 2980.0);
+        map.put("stock", 333);
+        map.put("description", "xxxx");
+        System.out.println(
+                mapper.updateByMap(map)
+        );
+
+        System.out.println(
+                mapper.updateByParamsAnno(
+                        4,
+                        "OPO_PHONE",
+                        2980.0,
+                        333,
+                        "xxxx"
+                )
+        );
+    }
+
+    @Test
     public void testSelect() {
-        DefaultSqlSession sqlSession = new DefaultSqlSession();
+        //DefaultSqlSession sqlSession = new DefaultSqlSession();
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
 
         // 查全部 LIST
@@ -139,5 +194,20 @@ public class GoodsMapperTest {
                         new Goods(3, null, null, 9999, "xxx")
                 )
         );
+
+        DefaultSqlSession sqlSession1 = factory.openSession();
+        mapper = sqlSession1.getMapper(GoodsMapper.class);
+
+        // 查询个数
+        System.out.println(
+                mapper.selectCount()
+        );
+
+        // 模糊查询
+        System.out.println(
+                mapper.selectLikeName("OPO")
+        );
     }
+
+
 }

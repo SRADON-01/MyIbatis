@@ -1,5 +1,6 @@
 package com.gxa.myIbatis.utils;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.List;
 
@@ -22,7 +23,11 @@ public class ExecuteParser {
      * @param type 返回结果类型
      * @return 返回结果
      */
-    public static Object handelSetStatement(PreparedStatement ps, List<?> params, SqlType type) {
+    public static Object handelSetStatement(PreparedStatement ps,
+                                            List<?> params,
+                                            SqlType type,
+                                            boolean autoCommit,
+                                            Connection conn) {
         System.out.println("[INFO] 参数列表: " + params.toString());
         try {
             // 依次设置参数
@@ -34,6 +39,10 @@ public class ExecuteParser {
             else if (type == SqlType.SELECT) return ps.executeQuery();
             else return null;
         } catch (Exception e) {
+            if (!autoCommit) {
+                dbUtils.rollback(conn);
+                System.out.println("[INFO] 事务已回滚");
+                }
             e.printStackTrace();
             throw new RuntimeException("[ERR] SQL参数设置失败");
         }

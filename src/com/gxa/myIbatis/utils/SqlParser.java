@@ -1,4 +1,5 @@
 package com.gxa.myIbatis.utils;
+import com.gxa.myIbatis.anno.Insert;
 import com.gxa.myIbatis.anno.Param;
 
 import java.lang.annotation.Annotation;
@@ -9,22 +10,22 @@ import java.util.*;
  * 已实现功能 :
  * 1. 插入
  *     将Bean对象中的属性值封装成SQL参数直接插入数据库
- *     - 参数类型: Bean x1
+ *     - 参数类型: Bean/Map x1
  *     - 返回类型: int
  *     ↗ 返回自增主键到参数Bean对象中
  * 2. 更新
  *     将Bean对象中的属性值封装成SQL参数直接插入数据库
  *     * 更新的条件和更新的值都必须在Bean中, 且一个属性不能同时作为更新条件和更新值
- *     - 参数类型: Bean x1
+ *     - 参数类型: Bean/Map x1
  *     - 返回类型: int
  * 3. 删除
  *     a. 只有一个条件的情况, 参数是单个简单数据类型 (WHERE id = #{})
  *         - 参数类型: Object x1
  *         - 返回类型: int
  *     b. 有一个或多个条件(条件参数封装于Bean), 参数是Bean(DTO) (WHERE id = #{} AND xx = #{} AND ...)
- *         - 参数类型: Bean x1
+ *         - 参数类型: Bean/Map x1
  *         - 返回类型: int
- *     ×c. 有多个条件, 而且参数都是单个数据类型, 参数不封装到Bean中, 是零散的多个数据类型
+ *     c. 有多个条件, 而且参数都是单个数据类型, 参数不封装到Bean中, 是零散的多个数据类型
  *         - 参数类型: Object1, Object2, ...
  *         - 返回类型: int
  *         ↗ 需要用@Param注解指定参数名称并封装到Map中当作是单个Map(Bean)参数传入
@@ -153,8 +154,9 @@ public class SqlParser {
         // 3. 从Map中取出对应的值
         List<Object> fieldValues = new ArrayList<>(); // 参数列表
         for (String fieldName : fieldNames) {
+            // map中没有对应的字段(#{key})
             if (paramsMap.get(fieldName) == null)
-                throw new RuntimeException("[WARN] 参数Map中缺少字段: " + fieldName);
+                throw new RuntimeException("[WARN] 参数中缺少字段: " + fieldName);
 
             fieldValues.add(paramsMap.get(fieldName));
         }
@@ -162,10 +164,33 @@ public class SqlParser {
         return result;
     }
 
+    public static Map<String, Object> parseListSql(String sql, List<?> list) {
+        // 1. 首先解析List获取参数的数量
+        Integer batchCount = list.size();
+
+        // 2. 把SQL中的占位符替换为`?, ?, ?...`
+        // 2.1 首先拿到${}里面的东西
+        String param = findField2(sql);
+        // 2.2 准备好`?, ?, ?...`
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < batchCount; i++) {
+            if (i == 0)
+                placeholders = new StringBuilder("?");
+            else
+                placeholders.append(", ?");
+        }
+        // 2.3 替换SQL
+        sql = sql.replace("${" + param + "}", placeholders.toString());
+
+        result.put("sql", sql);
+
+        // 3. 从List中取出对应的值
+        result.put("values", list);
+
+        return result;
+    }
+
     public static Map<String, Object> parseUpdateSql(String sql, Object bean, Method m) {
-        System.out.println(
-                bean.toString()
-        );
         // 判断mapper的参数是否为bean
         if (ReflectUtils.isBean(bean)) {
             // 是bean, 沿用处理插入语句解析SQL
@@ -180,6 +205,7 @@ public class SqlParser {
                     (Map<String, Object>) bean
             );
         } else if (bean instanceof Object[]) {
+            // 是参数数组(多个参数), 先把参数封装为map再沿用处理Map语句解析SQL
             return parseMapSql(
                     sql,
                     parseParamsAnno2Map((Object[]) bean, m)
@@ -195,7 +221,7 @@ public class SqlParser {
      * @param bean 实体对象
      * @return 解析结果map
      */
-    public static Map<String, Object> parseDeleteSql(String sql, Object bean) {
+    public static Map<String, Object> parseDeleteSql(String sql, Object bean, Method m) {
         // 判断mapper的参数是否为bean
         if (ReflectUtils.isBean(bean)) {
             // 是bean, 沿用处理插入语句解析SQL
@@ -203,20 +229,33 @@ public class SqlParser {
                     sql,
                     bean
             );
-        } else if (bean.getClass().getComponentType() == Map.class) {
+        } else if (bean instanceof Map) {
             // 是Map, 沿用处理Map语句解析SQL
             return parseMapSql(
                     sql,
                     (Map<String, Object>) bean
             );
-        } else {
-            // 不是bean, 代表传进来的是int或String, 直接存入参数中
+        } else if (bean instanceof Object[]) {
+            // 是参数数组(多个参数), 先把参数封装为map再沿用处理Map语句解析SQL
+            return parseMapSql(
+                    sql,
+                    parseParamsAnno2Map((Object[]) bean, m)
+            );
+        } else if (bean instanceof List){
+            return parseListSql(
+                    sql,
+                    (List<?>) bean
+            );
+        } else if (isSingleType(bean.getClass())){
+            // 其他情况, 代表传进来的是int或String, 直接存入参数中
             return parseParamsSql(
                     sql,
                     //
                     bean.getClass().getTypeName().equals(Arrays.class.getTypeName()) ?
                             (Object[]) bean : new Object[]{bean}
             );
+        } else {
+            throw new RuntimeException("[ERR] 不支持的参数格式: " + bean);
         }
     }
 
@@ -227,7 +266,7 @@ public class SqlParser {
      * @param bean 实体对象
      * @return 解析结果map
      */
-    public static Map<String, Object> parseSelectSql(String sql, Object bean) {
+    public static Map<String, Object> parseSelectSql(String sql, Object bean, Method m) {
 //        // 判断是查*还是部分查询, 怎么判断? 看看SQL语句有没有*
 //        if (! sql.contains("*")) {
 //
@@ -237,7 +276,8 @@ public class SqlParser {
             // 有条件, 处理方式同删除SQL
             return parseDeleteSql(
                     sql,
-                    bean
+                    bean,
+                    m
             );
         else {
             // 无条件, 即没有参数, 直接返回原SQL
@@ -267,12 +307,11 @@ public class SqlParser {
      * @没用到
      * 获取查询字段
      */
-    private static String getSelectField(String sql) {
-        sql = sql.substring(
-                sql.indexOf("SELECT") + 6,
-                sql.indexOf("FROM")
+    private static String findField2(String sql) {
+        return sql.substring(
+                sql.indexOf("${") + 2,
+                sql.indexOf("}")
         );
-        return null;
     }
 
 
@@ -303,6 +342,7 @@ public class SqlParser {
         return result.toString();
     }
 
+
     /**
      * 基本数据类型识别器
      * @param clazz 字节码
@@ -323,39 +363,56 @@ public class SqlParser {
         if (type.equals("boolean"))  return true;
         if (type.equals("char"))     return true;
         if (type.equals("string"))   return true;
+
+        // 这些个都不是基本数据类型, 但是还是得识别
         if (type.equals("date"))     return true;
         if (type.equals("time"))     return true;
-
-        // 这俩不是基本数据类型, 但是还是得识别
         if (type.equals("datetime")) return true;
-        if (type.equals("timestamp")) return true;
+        if (type.equals("timestamp"))return true;
 
+        // 都不是? 看看是不是Bean类
         try {
             if (ReflectUtils.isBean(clazz.newInstance())) return false;
         } catch (Exception e) {
             throw new RuntimeException("[ERR] 意外情况...");
         }
+        // 啥都不是, 那就报错
         throw new RuntimeException("[ERR] 不支持的类型: " + type);
     }
 
+
+    /**
+     * 把带注解的参数封装为Map
+     * @param args 参数
+     * @param method  方法, 用于获取参数的注解
+     * @return 封装好的map
+     */
     public static Map<String, Object> parseParamsAnno2Map(Object[] args, Method method) {
+        // 用于封装数据的Map, 之后再拿到ParseMapSql里面去处理
         Map<String, Object> fieldValues = new HashMap<>();
-        Annotation[][] annotations = method.getParameterAnnotations();
+
+        // 获取调用方方法的参数的注解二维数组 (每个参数对应一个注解数组, 因为一个参数可以打多个注解; 又因为一个方法可以有多个参数, 参数数组)
+        Annotation[][] annos = method.getParameterAnnotations();
+
         // 遍历每个参数
         for (int i = 0; i < args.length; i++) {
             // 遍历第i个参数上的所有注解
-            if (i < annotations.length) {
-                for (Annotation annotation : annotations[i]) {
+            if (i < annos.length) {
+                // 该参数上没有打注解, 直接报错
+                if (annos[i].length == 0) throw new RuntimeException("[ERR] 缺少@Param标记参数: " + args[i]);
+                for (Annotation annotation : annos[i]) {
                     // 检查是否是@Param注解
                     if (annotation instanceof Param) {
                         fieldValues.put( ((Param) annotation).value(), args[i]);
                         break;
                     }
+                    // 该参数上有注解但是打的不是@Param, 报错
                     else
-                        throw new RuntimeException("[ERR] 缺少@Param标记参数 !");
+                        throw new RuntimeException("[ERR] 缺少@Param标记参数: " + args[i]);
                 }
             }
         }
         return fieldValues;
     }
+    //...
 }

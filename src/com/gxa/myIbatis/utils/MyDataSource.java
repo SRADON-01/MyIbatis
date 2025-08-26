@@ -15,11 +15,15 @@ public class MyDataSource implements DataSource {
     // 数据库连接池底层的集合
     private LinkedList<Connection> conns = new LinkedList<>();
 
+    // 配置文件
+    private Properties config = new Properties();
+
     // 数据库配置
     private String driver = null;
     private String url = null;
     private String user = null;
     private String password = null;
+    private Boolean autoCommit = true;
     private Integer initPoolSize = 10;
     private Integer dynamicAddSize = 10;
 
@@ -43,15 +47,17 @@ public class MyDataSource implements DataSource {
             Class.forName(driver);
             // 5. 创建连接
             for (int i = 0; i < initPoolSize; i++) {
-                // 获取连接
+                // 5.1 获取连接
                 Connection conn = DriverManager.getConnection(url, user, password);
+//                // 5.2 是否开启事务
+//                if (!autoCommit) conn.setAutoCommit(false);
                 // 吧连接放入集合
                 conns.add(conn);
             }
             // 连接池初始化计数, 方便后续用set时覆盖连接池
             initCount++;
 
-            System.out.println("[INIT @MyDataSource] INIT POOL SUCCESS, POOLSIZE: " + conns.size());
+            System.out.println("[INIT @MyDataSource] INIT POOL SUCCESS, POOL_SIZE: " + conns.size());
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("[ERR @MyDataSource] 初始化连接池失败");
@@ -63,7 +69,7 @@ public class MyDataSource implements DataSource {
         // 先尝试读取配置文件
         try {
             // 1. Properties集合
-            Properties config = new Properties();
+            // Properties config = new Properties();
 
             // 2. 通过类加载加载properties集合, 获取输入对象
             InputStream resourceAsStream = MyDataSource.class.getClassLoader()
@@ -77,12 +83,19 @@ public class MyDataSource implements DataSource {
             url = config.getProperty("jdbc.url");
             user = config.getProperty("jdbc.username");
             password = config.getProperty("jdbc.password");
-            // 坑: 这里不能使用isEmpty或==null, 他找不到属性直接给你抛异常了
+            // 连接池初始化信息: 坑: 这里不能使用isEmpty或==null, 他找不到属性直接给你抛异常了
             try {
                 initPoolSize = Integer.parseInt(config.getProperty("jdbc.initPoolSize"));
                 dynamicAddSize = Integer.parseInt(config.getProperty("jdbc.dynamicAddSize"));
             } catch (Exception e) {
-                System.out.println("[WARN] CONFIG INITPOOLSIZE OR DYNAMICADDSIZE NOT FOUND");
+                System.out.println("[WARN] CONFIG 'INIT_POOL_SIZE' OR 'DYNAMIC_ADD_SIZE' NOT FOUND");
+            }
+            // 是否开启自动提交
+            try {
+                if (config.getProperty("jdbc.autoCommit").equals("false"))
+                    autoCommit = false;
+            } catch (Exception e) {
+                System.out.println("[WARN] CONFIG 'AUTO_COMMIT' NOT FOUND, NORMAL AUTO_COMMIT");
             }
             getProperties = true;
             System.out.println("[INFO @MyDataSource] CONFIG LOADED");
@@ -96,25 +109,61 @@ public class MyDataSource implements DataSource {
         }
     }
 
+    // 有参构造
+    public MyDataSource(Properties prop) {
+        // 3. 把内容保存到集合中
+        config = prop;
+
+        // 4. 把集合中的内容保存到数据库配置信息
+        driver = config.getProperty("jdbc.driver");
+        url = config.getProperty("jdbc.url");
+        user = config.getProperty("jdbc.username");
+        password = config.getProperty("jdbc.password");
+        // 连接池初始化信息: 坑: 这里不能使用isEmpty或==null, 他找不到属性直接给你抛异常了
+        try {
+            initPoolSize = Integer.parseInt(config.getProperty("jdbc.initPoolSize"));
+            dynamicAddSize = Integer.parseInt(config.getProperty("jdbc.dynamicAddSize"));
+        } catch (Exception e) {
+            System.out.println("[WARN] CONFIG 'INIT_POOL_SIZE' OR 'DYNAMIC_ADD_SIZE' NOT FOUND");
+        }
+//        // 是否开启自动提交
+//        try {
+//            if (config.getProperty("jdbc.autoCommit").equals("false"))
+//                autoCommit = false;
+//        } catch (Exception e) {
+//            System.out.println("[WARN] CONFIG 'AUTO_COMMIT' NOT FOUND, NORMAL AUTO_COMMIT");
+//        }
+        getProperties = true;
+        System.out.println("[INFO @MyDataSource] CONFIG LOADED");
+
+        // 5. 直接初始化连接池
+        InitPool();
+    }
+
     // 获取连接
     @Override
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection()  {
         // 移除并拿到这个链接
         Connection conn = conns.removeFirst();
 
         // 连接吃用尽了, 扩容
         if (conn == null) {
             System.out.println("[INFO @MyDataSource] CONNECTION POOL EMPTY, NOW ADDING...");
-            for (int i = 0; i < dynamicAddSize; i++) {
-                // 获取连接
-                Connection newConn = DriverManager.getConnection(url, user, password);
-                // 吧连接放入集合
-                conns.add(newConn);
-                System.out.println("[INFO @MyDataSource] CONNECTION ADD SUCCESS, POOLSIZE " + conns.size());
+            try {
+                for (int i = 0; i < dynamicAddSize; i++) {
+                    // 获取连接
+                    Connection newConn = DriverManager.getConnection(url, user, password);
+                    // 吧连接放入集合
+                    conns.add(newConn);
+                    System.out.println("[INFO @MyDataSource] CONNECTION ADD SUCCESS, POOL_SIZE " + conns.size());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("[ERR @MyDataSource] CONNECTION ADD FAILED");
             }
         }
 
-        System.out.println("[INFO @MyDataSource] CONNECTION RETRIEVE, POOLSIZE: " + conns.size());
+        System.out.println("[INFO @MyDataSource] CONNECTION RETRIEVE, POOL_SIZE: " + conns.size());
         return new MyConnection(conn);
     }
 
@@ -133,7 +182,7 @@ public class MyDataSource implements DataSource {
         @Override
         public void close() {
             conns.add(conn);
-            System.out.println("[INFO @MyDataSource] CONNECTION RETURN, POOLSIZE: "+ conns.size());
+            System.out.println("[INFO @MyDataSource] CONNECTION RETURN, POOL_SIZE: "+ conns.size());
 
         }
 
