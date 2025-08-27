@@ -1,9 +1,8 @@
 package com.gxa.test;
 
 import com.gxa.mapper.GoodsMapper;
-import com.gxa.myIbatis.sqlSession.DefaultSqlSession;
-import com.gxa.myIbatis.sqlSession.SqlSessionFactory;
-import com.gxa.myIbatis.sqlSession.SqlSessionFactoryx;
+import com.gxa.myIbatis.session.DefaultSqlSession;
+import com.gxa.myIbatis.session.SqlSessionFactory;
 import com.gxa.pojo.entity.Goods;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,7 +24,7 @@ public class GoodsMapperTest {
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         int i = mapper.insert(new Goods(
                 null,
-                "小米",
+                "OPPO",
                 1998.0,
                 9999,
                 "goodxm"
@@ -68,11 +67,11 @@ public class GoodsMapperTest {
         //DefaultSqlSession sqlSession = new DefaultSqlSession();
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         System.out.println(
-                mapper.delete(19)
+                mapper.delete(36)
         );
         System.out.println(
                 mapper.deleteByIdAndStock(new Goods(
-                        32,
+                        37,
                         null,
                         null,
                         114514,
@@ -81,7 +80,7 @@ public class GoodsMapperTest {
         );
         System.out.println(
                 mapper.deleteByIdAndStock(new Goods(
-                        32,
+                        37,
                         null,
                         null,
                         114514, //
@@ -96,7 +95,7 @@ public class GoodsMapperTest {
         System.out.println(
                 mapper.deleteByMapWithIdAndStock(
                         new HashMap<String, Object>() {{
-                            put("id", 17);
+                            put("id", 39);
                             put("stock", 114514);
                         }}
                 )
@@ -115,7 +114,7 @@ public class GoodsMapperTest {
         System.out.println(
                 mapper.update(new Goods(
                         35,
-                        "OPO0_PHONE",
+                        "OPO0_PHONE1",
                         2980.0,
                         333,
                         "xxxx"
@@ -129,7 +128,7 @@ public class GoodsMapperTest {
         GoodsMapper mapper = sqlSession.getMapper(GoodsMapper.class);
         Map map = new HashMap<String, Object>();
         map.put("id", 3);
-        map.put("name", "OPO_PHONE");
+        map.put("name", "OPO_PHONEX");
         map.put("price", 2980.0);
         map.put("stock", 333);
         map.put("description", "xxxx");
@@ -140,7 +139,7 @@ public class GoodsMapperTest {
         System.out.println(
                 mapper.updateByParamsAnno(
                         4,
-                        "OPO_PHONE",
+                        "OPO_PHONEX",
                         2980.0,
                         333,
                         "xxxx"

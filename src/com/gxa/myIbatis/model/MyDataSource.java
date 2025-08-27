@@ -1,4 +1,4 @@
-package com.gxa.myIbatis.utils;
+package com.gxa.myIbatis.model;
 
 import javax.sql.DataSource;
 import java.io.InputStream;
@@ -10,6 +10,9 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 
+/**
+ * OPO连接池
+ */
 public class MyDataSource implements DataSource {
 
     // 数据库连接池底层的集合

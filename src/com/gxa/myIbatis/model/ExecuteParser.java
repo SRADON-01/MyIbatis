@@ -1,11 +1,13 @@
-package com.gxa.myIbatis.utils;
+package com.gxa.myIbatis.model;
+
+import com.gxa.myIbatis.utils.dbUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.List;
 
 /**
- * SQL语句执行类 (设置Statement参数)
+ * SQL语句执行类 (设置Statement参数和Execute)
  */
 public class ExecuteParser {
     /**
@@ -39,10 +41,11 @@ public class ExecuteParser {
             else if (type == SqlType.SELECT) return ps.executeQuery();
             else return null;
         } catch (Exception e) {
-            if (!autoCommit) {
-                dbUtils.rollback(conn);
-                System.out.println("[INFO] 事务已回滚");
-                }
+//            // 自动回滚
+//            if (!autoCommit) {
+//                dbUtils.rollback(conn);
+//                System.out.println("[INFO] 事务已回滚");
+//                }
             e.printStackTrace();
             throw new RuntimeException("[ERR] SQL参数设置失败");
         }

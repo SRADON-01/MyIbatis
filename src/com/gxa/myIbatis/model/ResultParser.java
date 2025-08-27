@@ -1,4 +1,4 @@
-package com.gxa.myIbatis.utils;
+package com.gxa.myIbatis.model;
 
 import org.apache.commons.beanutils.BeanUtils;
 

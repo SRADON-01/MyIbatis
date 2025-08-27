@@ -1,6 +1,6 @@
-package com.gxa.myIbatis.utils;
-import com.gxa.myIbatis.anno.Insert;
+package com.gxa.myIbatis.model;
 import com.gxa.myIbatis.anno.Param;
+import com.gxa.myIbatis.utils.ReflectUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -29,7 +29,7 @@ import java.util.*;
  *         - 参数类型: Object1, Object2, ...
  *         - 返回类型: int
  *         ↗ 需要用@Param注解指定参数名称并封装到Map中当作是单个Map(Bean)参数传入
- *     ×d. 批量删除, 参数是列表(List<ids>)
+ *     d. 批量删除, 参数是列表(List<ids>)
  *         - 参数类型: List<Object>
  *         - 返回类型: int
  * 4. 查询
@@ -50,9 +50,10 @@ import java.util.*;
  *                     - 单行 Bean、Map、八大基本数据类型(或其他)
  *                     - 多行 List<Bean>、×List<Map> 、×List<SingleType>
  * 5. 其他功能
- *     - 一级缓存
+ *     - 一级缓存 √
  *     - 二级缓存 ×
- *     - 事务 ×
+ *     - 批量插入/更新 ×
+ *     - 事务 √
  */
 
 /**
@@ -190,6 +191,13 @@ public class SqlParser {
         return result;
     }
 
+    /**
+     * 处理增改SQL
+     * @param sql 从注解获取的SQL
+     * @param bean 实体对象
+     * @param m
+     * @return
+     */
     public static Map<String, Object> parseUpdateSql(String sql, Object bean, Method m) {
         // 判断mapper的参数是否为bean
         if (ReflectUtils.isBean(bean)) {
@@ -267,10 +275,6 @@ public class SqlParser {
      * @return 解析结果map
      */
     public static Map<String, Object> parseSelectSql(String sql, Object bean, Method m) {
-//        // 判断是查*还是部分查询, 怎么判断? 看看SQL语句有没有*
-//        if (! sql.contains("*")) {
-//
-//        }
         // 判断查询语句中是否有条件, 怎么判断? 看看SQL语句有没有WHERE或#
         if (sql.contains("#"))
             // 有条件, 处理方式同删除SQL

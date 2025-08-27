@@ -1,18 +1,14 @@
 package com.gxa.test;
 
-import com.gxa.mapper.GoodsMapper;
 import com.gxa.mapper.TypesMapper;
-import com.gxa.myIbatis.anno.Param;
-import com.gxa.myIbatis.sqlSession.DefaultSqlSession;
-import com.gxa.myIbatis.sqlSession.SqlSession;
-import com.gxa.myIbatis.sqlSession.SqlSessionFactory;
+import com.gxa.myIbatis.session.DefaultSqlSession;
+import com.gxa.myIbatis.session.SqlSessionFactory;
 import com.gxa.pojo.entity.Types;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 public class TypesMapperTest {
     DefaultSqlSession sqlSession;
@@ -20,7 +16,7 @@ public class TypesMapperTest {
     @Before
     public void init(){
         factory = new SqlSessionFactory("jdbc.properties");
-        sqlSession = factory.openSession(false);
+        sqlSession = factory.openSession();
     }
 
     @Test
@@ -36,6 +32,7 @@ public class TypesMapperTest {
         System.out.println(
                 mapper.insertReturnId(types) + types.toString()
         );
+        // sqlSession.commit();
     }
 
     @Test
@@ -53,33 +50,36 @@ public class TypesMapperTest {
         TypesMapper mapper = sqlSession.getMapper(TypesMapper.class);
         System.out.println(
                 mapper.updateById(new Types(
-                        15L, "10000", 100, "1xx"
+                        15L, "Y007", 1000, "1xx"
                 ))
         );
+        // sqlSession.commit();
     }
 
     @Test
     public void testDelete() {
         // SqlSession sqlSession = new DefaultSqlSession();
+        // sqlSession.beginTransaction();
         TypesMapper mapper = sqlSession.getMapper(TypesMapper.class);
         System.out.println(
-                mapper.deleteById(36)
+                mapper.deleteById(177)
         );
         System.out.println(
                 mapper.deleteByIdAndNum(new Types(
-                        37L, "2", null, null
+                        34L, "1", null, null
                 ))
         );
         System.out.println(
                 mapper.deleteByIds(
                         new ArrayList<Integer>() {{
-                            add(60);
-                            add(61);
-                            add(62);
-                            add(63);
+                            add(28);
+                            add(29);
+                            add(32);
+                            add(33);
                         }}
                 )
         );
+        // sqlSession.commit();
     }
 
     @Test
@@ -88,18 +88,18 @@ public class TypesMapperTest {
         TypesMapper mapper = sqlSession.getMapper(TypesMapper.class);
         System.out.println(
                 mapper.selectMapById(
-                        60
+                        64
                 )
         );
         System.out.println(
                 mapper.selectMapByIdAndName(
                         new Types(
-                                61L, null, null, "xxx"
+                                65L, null, null, "xxx"
                         )
                 )
         );
         System.out.println(
-                mapper.selectTypesById(62)
+                mapper.selectTypesById(66)
         );
 //        System.out.println(
 //                mapper.selectListMap()
@@ -178,16 +178,16 @@ public class TypesMapperTest {
         try {
             System.out.println(
                     mapper.insert(
-                            new Types(null, "X004", 58, "Mouse")
+                            new Types(null, "X0040", 58, "Mouse")
                     )
             );
             // int i = 1 / 0;
             System.out.println(
                     mapper.insert(
-                            new Types(null, "X005", 59, "Mouse")
+                            new Types(null, "X0050", 59, "Mouse")
                     )
             );
-            sqlSession.commit();
+            // sqlSession.commit();
         } catch (Exception e) {
             sqlSession.rollback();
         }

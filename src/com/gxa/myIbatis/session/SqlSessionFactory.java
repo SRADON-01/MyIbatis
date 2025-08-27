@@ -1,7 +1,7 @@
-package com.gxa.myIbatis.sqlSession;
+package com.gxa.myIbatis.session;
 
-import com.gxa.myIbatis.utils.Config;
-import com.gxa.myIbatis.utils.MyDataSource;
+import com.gxa.myIbatis.model.Config;
+import com.gxa.myIbatis.model.MyDataSource;
 import com.gxa.myIbatis.utils.dbUtils;
 
 import java.io.InputStream;
@@ -46,7 +46,7 @@ public class SqlSessionFactory {
             if (prop.getProperty("jdbc.autoCommit").equals("false"))
                 cfg.setAutoCommit(false);
         } catch (Exception e) {
-            System.out.println("[WARN] CONFIG 'AUTO_COMMIT' NOT FOUND, NORMAL AUTO_COMMIT");
+            System.out.println("[WARN] CONFIG 'jdbc.autoCommit' NOT FOUND, NORMAL AUTO_COMMIT");
         }
     }
 

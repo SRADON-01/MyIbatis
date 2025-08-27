@@ -1,6 +1,4 @@
-package com.gxa.myIbatis.sqlSession;
-
-import java.sql.Connection;
+package com.gxa.myIbatis.session;
 
 public interface SqlSession {
 
