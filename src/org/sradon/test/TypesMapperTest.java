@@ -174,24 +174,24 @@ public class TypesMapperTest {
     @Test
     public void testTrans() {
         TypesMapper mapper = sqlSession.getMapper(TypesMapper.class);
-        // sqlSession.beginTransaction();
+        sqlSession.beginTransaction();
         try {
             System.out.println(
                     mapper.insert(
-                            new Types(null, "X0040", 58, "Mouse")
+                            new Types(null, "X0140", 58, "Mouse")
                     )
             );
             // int i = 1 / 0;
             System.out.println(
                     mapper.insert(
-                            new Types(null, "X0050", 59, "Mouse")
+                            new Types(null, "X0150", 59, "Mouse")
                     )
             );
-            // sqlSession.commit();
+            sqlSession.commit();
         } catch (Exception e) {
             sqlSession.rollback();
         }
-        // sqlSession.close();
+        sqlSession.close();
 
 
     }

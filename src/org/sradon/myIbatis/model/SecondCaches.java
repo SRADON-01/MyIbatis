@@ -60,7 +60,7 @@ public class SecondCaches {
      */
     public void removeIfUpdate(String sqlAndValues) {
         String tableName = SqlParser.getTableName(sqlAndValues);
-        System.out.println("[INFO] 提取表名: <" + tableName + "> 用于二级缓存");
+        // System.out.println("[INFO] 提取表名: <" + tableName + "> 用于二级缓存");
         // 遍历所有缓存项, 检查是否是tb_xx表
         for (String key : Caches2.keySet()) {
             // 删除所有包含该表的缓存

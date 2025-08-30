@@ -25,7 +25,7 @@ public class SqlSessionManager implements SqlSessionFactory{
      * @param configName 配置文件名称 (classpath: jdbc.properties)
      */
     public SqlSessionManager(String configName) {
-        System.out.println("[INFO] 初始化SqlSessionFactory");
+        // System.out.println("[INFO] 初始化SqlSessionFactory");
         init(configName);   // 构造时完成初始化
         System.out.println("[INIT] 初始化SqlSessionFactory完成");
     }

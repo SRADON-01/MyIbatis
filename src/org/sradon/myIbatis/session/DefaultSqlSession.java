@@ -328,19 +328,19 @@ public class DefaultSqlSession implements SqlSession {
 
     @Override
     public void commit() {
+        if (cfg.isAutoCommit()) return;  // 防止没开事务又去提交事务
         dbUtils.commit(conn);
     }
 
     @Override
     public void rollback() {
+        if (cfg.isAutoCommit()) return;  // 防止没开事务又去提交事务
         dbUtils.rollback(conn);
     }
 
     @Override
     public void close() {
         // 没开启事务才能归还连接
-        if (cfg.isAutoCommit()) {
-            dbUtils.closer(conn);
-        }
+        if (cfg.isAutoCommit()) dbUtils.closer(conn);
     }
 }
